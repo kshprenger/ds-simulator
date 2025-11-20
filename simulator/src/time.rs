@@ -10,3 +10,7 @@ pub fn schedule_timeout(after: Jiffies) {
             .or_else(|| panic!("Out of simulation context"))
     });
 }
+
+pub fn reset_timeout() {
+    todo!()
+}

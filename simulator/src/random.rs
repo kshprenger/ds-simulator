@@ -13,8 +13,8 @@ impl Randomizer {
         }
     }
 
-    pub fn pick_process(&mut self, lower_bound: usize, upper_bound: usize) -> usize {
-        let uniform = Uniform::new_inclusive(lower_bound, upper_bound).expect("Wrong bounds");
+    pub fn random_from_range(&mut self, lower_bound: usize, upper_bound: usize) -> usize {
+        let uniform = Uniform::new_inclusive(lower_bound, upper_bound).expect("Invalid bounds");
         self.rnd.sample(uniform)
     }
 }
