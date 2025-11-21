@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use priority_queue::PriorityQueue;
-
 use crate::{
     communication::{Event, EventDeliveryQueue, EventId, EventType},
     metrics::{self, Metrics},
@@ -40,10 +38,10 @@ impl Simulation {
 
         match event_type {
             EventType::Timeout => {
-                self.metrics.add_timeout(curr_proc);
+                self.metrics.track_timeout(curr_proc);
             }
             EventType::Message(message) => {
-                self.metrics.add_event();
+                self.metrics.track_event();
                 todo!()
             }
         }
@@ -76,7 +74,6 @@ impl Simulation {
             if !self.step() {
                 panic!("Deadlock")
             }
-            self.tick();
         }
 
         self.metrics.clone()
@@ -104,7 +101,8 @@ impl Simulation {
             .0
     }
 
-    fn keep_running(&self) -> bool {
+    fn keep_running(&mut self) -> bool {
+        self.tick();
         self.global_time < self.max_steps
     }
 
@@ -129,6 +127,9 @@ impl Simulation {
         if next_events.is_empty() {
             return false;
         }
+
+        // Fault injection/latency goes here
+
         self.deliver_events(next_events);
         return true;
     }
@@ -136,7 +137,10 @@ impl Simulation {
     fn deliver_events(&mut self, events: Vec<(ProcessId, Event)>) {
         events.into_iter().for_each(|(target, event)| {
             self.current_process = Some(target);
-            self.handle_of(target).on_event(event);
+            let produced_messages = self.handle_of(target).on_event(event);
+            produced_messages.into_iter().for_each(|message| {
+                self.submit_event_after(EventType::Message(message), 0);
+            });
         })
     }
 
