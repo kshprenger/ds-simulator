@@ -128,24 +128,32 @@ impl Simulation {
     }
 
     fn initial_step(&mut self) {
-        self.procs.iter_mut().for_each(|(id, (process_handle, _))| {
-            self.current_process = Some(*id);
-            process_handle.init();
-        });
+        for id in self.procs.keys().copied().collect::<Vec<ProcessId>>() {
+            self.set_proccess_on_execution(id);
+            self.procs.get_mut(&id).unwrap().0.init();
+        }
     }
 
     fn step(&mut self) -> bool {
-        let next_steps = self.choose_next_processes_steps();
-        if next_steps.is_empty() {
+        if self.there_is_no_steps() {
             return false;
         }
+
+        let next_steps = self.choose_next_processes_steps();
+
+        if next_steps.is_empty() {
+            // There is steps, but they have greater arrival time than current global time.
+            // So this simulation step executes as no-op
+            return true;
+        }
+
         self.execute_processes_steps(next_steps);
         return true;
     }
 
     fn execute_processes_steps(&mut self, steps: Vec<ProcessStep>) {
         steps.into_iter().for_each(|(target, event)| {
-            self.current_process = Some(target);
+            self.set_proccess_on_execution(target);
             self.metrics.track_step((target, event.clone()));
             let produced_messages = self.handle_of(target).on_event(event);
             produced_messages
@@ -154,6 +162,14 @@ impl Simulation {
                     self.submit_event_after(EventType::Message(message), destination, Jiffies(1));
                 });
         })
+    }
+
+    fn set_proccess_on_execution(&mut self, proc: ProcessId) {
+        self.current_process = Some(proc)
+    }
+
+    fn there_is_no_steps(&self) -> bool {
+        self.procs.iter().all(|(_, (_, queue))| queue.is_empty())
     }
 
     fn choose_next_processes_steps(&mut self) -> Vec<ProcessStep> {
