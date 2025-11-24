@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     communication::{Event, TimePriorityEventQueue},
     process::ProcessId,
@@ -7,7 +5,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy)]
-pub(crate) enum BandwidthType {
+pub enum BandwidthType {
     Unbounded,
     Bounded(usize), // Bytes per Jiffy
 }
@@ -32,7 +30,7 @@ impl NetworkBoundedQueue {
         }
     }
 
-    pub(crate) fn push(&mut self, event: Event, should_arrive_at: Jiffies) {
+    pub(crate) fn push(&mut self, event: (ProcessId, Event), should_arrive_at: Jiffies) {
         self.queue.push(event, should_arrive_at);
     }
 
@@ -40,18 +38,17 @@ impl NetworkBoundedQueue {
         self.queue.is_empty()
     }
 
-    pub(crate) fn peek(&self) -> Option<(&Event, &Jiffies)> {
+    pub(crate) fn peek(&self) -> Option<(&(ProcessId, Event), &Jiffies)> {
         self.queue.peek()
     }
 
-    pub(crate) fn remove(&mut self, event: &Event) {
-        self.queue.remove(event);
-    }
-
-    pub(crate) fn try_pop(&mut self, current_time: Jiffies) -> Option<Event> {
+    pub(crate) fn try_pop(&mut self, current_time: Jiffies) -> Option<(ProcessId, Event)> {
         match self.queue.peek() {
             None => None,
-            Some((event, _)) => {
+            Some(((_, event), _)) => {
+                if self.bandwidth == usize::MAX {
+                    return Some(self.queue.pop().unwrap().0);
+                }
                 if self.total_passed + event.size() > self.bandwidth * current_time {
                     None
                 } else {

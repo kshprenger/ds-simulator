@@ -1,24 +1,22 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
-    communication::{Destination, Event, EventId, EventType, TimePriorityEventQueue},
-    fault::{BandwidthType, Latency, NetworkBoundedQueue},
+    communication::{Destination, Event},
     history::ProcessStep,
     metrics::Metrics,
+    network_condition::{BandwidthType, Latency, NetworkBoundedQueue},
     process::{ProcessHandle, ProcessId},
     random::{self, Randomizer},
     simulation_result::SimulationResult,
     time::Jiffies,
 };
 
-pub(crate) struct Simulation {
+pub struct Simulation {
     latency: Latency,
     procs: HashMap<ProcessId, (Box<dyn ProcessHandle>, NetworkBoundedQueue)>,
     metrics: Metrics,
-    current_process: Option<ProcessId>,
     global_time: Jiffies,
     max_steps: Jiffies,
-    next_event: EventId,
 }
 
 impl Simulation {
@@ -31,42 +29,39 @@ impl Simulation {
             latency: Latency::new(Randomizer::new(seed), max_network_latency),
             procs: HashMap::new(),
             metrics: Metrics::default(),
-            current_process: None,
             global_time: Jiffies(0),
             max_steps: max_steps,
-            next_event: 0,
         }
+    }
+
+    pub(crate) fn submit_event_set(
+        &mut self,
+        source: ProcessId,
+        set: HashSet<(Destination, Event)>,
+    ) {
+        set.into_iter().for_each(|(destination, event)| {
+            self.submit_event_after(event, source, destination, Jiffies(1));
+        });
     }
 
     pub(crate) fn submit_event_after(
         &mut self,
-        event_type: EventType,
+        event: Event,
+        source: ProcessId,
         destination: Destination,
         after: Jiffies,
-    ) -> EventId {
-        let next_event_id = self.get_next_event_id();
+    ) {
         let will_arrive_at = self.calculate_arrival_time(after);
-
-        let event = Event {
-            id: next_event_id,
-            event_type,
-        };
 
         let targets = match destination {
             Destination::Broadcast => self.procs.keys().copied().collect::<Vec<ProcessId>>(),
-            Destination::SendSelf => vec![self.curr_process()],
+            Destination::SendSelf => vec![source],
         };
 
         targets.into_iter().for_each(|target| {
             self.devilery_queue_of(target)
-                .push(event.clone(), will_arrive_at);
+                .push((source, event.clone()), will_arrive_at);
         });
-
-        next_event_id
-    }
-
-    pub(crate) fn cancel_event(&mut self, event: &Event) {
-        self.devilery_queue_of(self.curr_process()).remove(event);
     }
 
     pub(crate) fn add_process(
@@ -79,7 +74,7 @@ impl Simulation {
             .insert(id, (proc, NetworkBoundedQueue::new(bandwidth)));
     }
 
-    pub(crate) fn run(&mut self) -> SimulationResult {
+    pub fn run(&mut self) -> SimulationResult {
         self.initial_step();
 
         while self.keep_running() {
@@ -93,10 +88,6 @@ impl Simulation {
 }
 
 impl Simulation {
-    fn curr_process(&self) -> ProcessId {
-        self.current_process.expect("No current process")
-    }
-
     fn devilery_queue_of(&mut self, process_id: ProcessId) -> &mut NetworkBoundedQueue {
         &mut self
             .procs
@@ -126,15 +117,10 @@ impl Simulation {
         after + self.global_time + self.latency.introduce_random_latency()
     }
 
-    fn get_next_event_id(&mut self) -> EventId {
-        self.next_event += 1;
-        self.next_event
-    }
-
     fn initial_step(&mut self) {
         for id in self.procs.keys().copied().collect::<Vec<ProcessId>>() {
-            self.set_proccess_on_execution(id);
-            self.procs.get_mut(&id).unwrap().0.init();
+            let next_events = self.procs.get_mut(&id).unwrap().0.init();
+            self.submit_event_set(id, next_events);
         }
     }
 
@@ -156,20 +142,11 @@ impl Simulation {
     }
 
     fn execute_processes_steps(&mut self, steps: Vec<ProcessStep>) {
-        steps.into_iter().for_each(|(target, event)| {
-            self.set_proccess_on_execution(target);
-            self.metrics.track_step((target, event.clone()));
-            let produced_messages = self.handle_of(target).on_event(event);
-            produced_messages
-                .into_iter()
-                .for_each(|(destination, message)| {
-                    self.submit_event_after(EventType::Message(message), destination, Jiffies(1));
-                });
+        steps.into_iter().for_each(|(source, event, target)| {
+            self.metrics.track_step((source, event.clone(), target));
+            let next_events = self.handle_of(target).on_event((source, event));
+            self.submit_event_set(target, next_events);
         })
-    }
-
-    fn set_proccess_on_execution(&mut self, proc: ProcessId) {
-        self.current_process = Some(proc)
     }
 
     fn there_is_no_steps(&self) -> bool {
@@ -190,7 +167,7 @@ impl Simulation {
             .filter_map(|(candidate, (_, candidate_queue))| {
                 candidate_queue
                     .try_pop(self.global_time)
-                    .map(|event| (*candidate, event))
+                    .map(|(source, event)| (source, event, *candidate))
             })
             .collect()
     }

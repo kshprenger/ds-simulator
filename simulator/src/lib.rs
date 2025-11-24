@@ -1,12 +1,20 @@
 mod communication;
-mod fault;
 mod history;
 mod metrics;
+mod network_condition;
 mod process;
 mod random;
-mod runner;
 mod simulation;
 mod simulation_builder;
-mod simulation_handle;
 mod simulation_result;
 mod time;
+
+pub use communication::EventBatch;
+pub use communication::{Destination, Event, Message};
+pub use network_condition::BandwidthType;
+pub use process::ProcessHandle;
+pub use process::ProcessId;
+pub use simulation::Simulation;
+pub use simulation_builder::SimulationBuilder;
+pub use simulation_result::SimulationResult;
+pub use time::Jiffies;

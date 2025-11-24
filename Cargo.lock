@@ -86,6 +86,10 @@ dependencies = [
 [[package]]
 name = "protocols"
 version = "0.1.0"
+dependencies = [
+ "bytes",
+ "simulator",
+]
 
 [[package]]
 name = "quote"

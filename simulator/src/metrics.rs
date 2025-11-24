@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    communication::{Event, EventType},
+    communication::Event,
     history::{ExecutionHistory, ProcessStep},
     process::ProcessId,
 };
@@ -31,11 +31,11 @@ impl Metrics {
 
     fn track_event(&mut self, id: ProcessId, event: &Event) {
         self.events_total += 1;
-        match event.event_type {
-            EventType::Timeout => {
+        match event {
+            Event::Timeout => {
                 self.track_timeout(id);
             }
-            EventType::Message(_) => {}
+            Event::Message(_) => {}
         }
     }
 }
