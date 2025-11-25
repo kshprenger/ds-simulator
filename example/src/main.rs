@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use simulator::{
-    Destination, Event, EventBatch, Jiffies, ProcessHandle, ProcessId, SimulationBuilder, event_set,
+    Destination, Event, EventSet, Jiffies, ProcessHandle, ProcessId, SimulationBuilder, event_set,
 };
 
 struct ExampleProcess {}
@@ -12,11 +12,11 @@ impl ExampleProcess {
 }
 
 impl ProcessHandle for ExampleProcess {
-    fn init(&mut self) -> EventBatch {
+    fn init(&mut self) -> EventSet {
         event_set![Destination::SendSelf => Event::Timeout]
     }
 
-    fn on_event(&mut self, event: (ProcessId, Event)) -> EventBatch {
+    fn on_event(&mut self, event: (ProcessId, Event)) -> EventSet {
         match event.1 {
             Event::Timeout => {
                 event_set![Destination::Broadcast => Event::Message(Bytes::new())]

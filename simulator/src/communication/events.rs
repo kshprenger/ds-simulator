@@ -10,7 +10,7 @@ pub enum Event {
     Message(bytes::Bytes),
 }
 
-pub type EventBatch = HashSet<(Destination, Event)>;
+pub type EventSet = HashSet<(Destination, Event)>;
 
 #[macro_export]
 macro_rules! event_set {
