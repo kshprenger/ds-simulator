@@ -48,7 +48,7 @@ impl<M: Message> BandwidthQueue<M> {
     }
 
     pub(crate) fn push(&mut self, message: RoutedMessage<M>) {
-        debug!("Submitted message with base time: {}", message.0.0);
+        debug!("Submitted message with base time: {}", message.0);
         self.global_queue.push(message);
     }
 
