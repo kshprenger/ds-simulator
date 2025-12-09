@@ -73,7 +73,6 @@ where
 {
     fn submit_messages(&mut self, source: ProcessId, messages: Vec<(Destination, M)>) {
         messages.into_iter().for_each(|(destination, event)| {
-            // Happy path -> schedule on the next step
             self.submit_message(event, source, destination, self.global_time + Jiffies(1));
         });
     }
@@ -91,8 +90,7 @@ where
             Destination::SendSelf => vec![source],
         };
 
-        debug!("Submited message, targets: {targets:?}");
-
+        debug!("Submited message, targets of the message: {targets:?}");
         targets.into_iter().for_each(|target| {
             self.bandwidth_queue
                 .push((base_arrival_time, (source, target, message.clone())));
@@ -111,6 +109,7 @@ where
 
     fn initial_step(&mut self) {
         for id in self.procs.keys().copied().collect::<Vec<ProcessId>>() {
+            debug!("Executing initial step for {id}");
             let mut outgoing_messages = OutgoingMessages::new();
             self.handle_of(id).bootstrap(id, &mut outgoing_messages);
             self.submit_messages(id, outgoing_messages.0);
@@ -133,12 +132,11 @@ where
 
     fn set_global_time(&mut self, time: Jiffies) {
         debug_assert!(self.global_time <= time);
-        debug!("Global time now: {}", time);
         self.global_time = time;
+        debug!("Global time now: {time}");
     }
 
     fn execute_process_step(&mut self, step: ProcessStep<M>) {
-        debug!("Executing step. Source: {}, Dest: {}", step.0, step.1);
         self.metrics.track_event();
 
         let source = step.0;
@@ -146,6 +144,8 @@ where
         let message = step.2;
 
         let mut outgoing_messages = OutgoingMessages::new();
+
+        debug!("Executing step for {} | Message Source: {}", dest, source);
         self.handle_of(dest)
             .on_message(source, message, &mut outgoing_messages);
         self.submit_messages(dest, outgoing_messages.0);
