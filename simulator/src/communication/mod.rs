@@ -1,7 +1,8 @@
+mod destination;
 mod message;
 mod outgoing_messages;
 
-pub use message::Destination;
+pub use destination::Destination;
 pub use message::Message;
 pub use message::RoutedMessage;
 pub use message::TimePriorityMessageQueue;
