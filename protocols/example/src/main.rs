@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use std::time::Instant;
 
 use simulator::{Jiffies, Message, ProcessHandle, ProcessId, SimulationBuilder};
