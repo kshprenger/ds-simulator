@@ -3,24 +3,25 @@ use std::{collections::VecDeque, ops::Index, ptr, rc::Rc};
 use simulator::ProcessId;
 
 type VertexPtr = Rc<Vertex>;
+type Round = Vec<Option<VertexPtr>>;
 
 fn IsSameVertex(v: &VertexPtr, u: &VertexPtr) -> bool {
     ptr::eq(v.as_ref(), u.as_ref())
 }
 
-pub(super) struct Vertex {
+pub struct Vertex {
     round: usize,
     source: ProcessId,
     strong_edges: Vec<VertexPtr>,
 }
 
-pub(super) struct DAG {
-    matrix: Vec<Vec<Option<VertexPtr>>>,
-    visited: Vec<Vec<bool>>, // Optimized allocations & constant lookup
+pub struct RoundBasedDAG {
+    matrix: Vec<Round>,
+    visited: Vec<Vec<bool>>, // Optimized allocations & constant lookup for iterated bfs
 }
 
-impl DAG {
-    pub(super) fn New(n: usize) -> Self {
+impl RoundBasedDAG {
+    pub fn New(n: usize) -> Self {
         let genesis_vertices = (0..n)
             .map(|_| Vertex {
                 round: 0,
@@ -28,7 +29,7 @@ impl DAG {
                 strong_edges: Vec::new(),
             })
             .map(|v| Some(VertexPtr::new(v)))
-            .collect::<Vec<Option<VertexPtr>>>();
+            .collect::<Round>();
 
         let mut matrix = Vec::new();
         matrix.push(genesis_vertices);
@@ -40,7 +41,7 @@ impl DAG {
     }
 
     // v & u already in the DAG
-    pub(super) fn PathExists(&mut self, v: VertexPtr, u: VertexPtr) -> bool {
+    pub fn PathExists(&mut self, v: VertexPtr, u: VertexPtr) -> bool {
         if IsSameVertex(&v, &u) {
             return true;
         }
@@ -70,7 +71,7 @@ impl DAG {
         return false;
     }
 
-    pub(super) fn Add(&mut self, v: VertexPtr) {
+    pub fn AddVertex(&mut self, v: VertexPtr) {
         if self.matrix.len() > v.round {
             self.Insert(v);
         } else {
@@ -81,7 +82,7 @@ impl DAG {
     }
 }
 
-impl DAG {
+impl RoundBasedDAG {
     fn Grow(&mut self, rounds: usize) {
         let n = self.matrix[0].len();
         (0..rounds).for_each(|_| {
@@ -110,8 +111,8 @@ impl DAG {
     }
 }
 
-impl Index<usize> for DAG {
-    type Output = Vec<Option<VertexPtr>>;
+impl Index<usize> for RoundBasedDAG {
+    type Output = Round;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.matrix[index]

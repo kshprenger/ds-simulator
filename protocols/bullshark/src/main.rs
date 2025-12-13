@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 
-mod dag;
-
 use std::rc::Rc;
 
+use dag_utils::RoundBasedDAG;
 use simulator::*;
 
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
@@ -18,12 +17,14 @@ impl Message for BullsharkMessage {
 struct Vertex {}
 
 struct Bullshark {
-    dag: Vec<Vec<Rc<Vertex>>>,
+    dag: RoundBasedDAG,
 }
 
 impl Bullshark {
     fn New() -> Self {
-        Self {}
+        Self {
+            dag: RoundBasedDAG::New(69),
+        }
     }
 }
 
