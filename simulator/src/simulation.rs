@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use log::debug;
 
 use crate::{
-    OutgoingMessages,
+    SimulationAccess,
     communication::{Destination, Message, ProcessStep, RoutedMessage},
     metrics::Metrics,
     network_condition::{BandwidthQueue, BandwidthQueueOptions, BandwidthType, LatencyQueue},
@@ -116,13 +116,13 @@ where
     fn InitialStep(&mut self) {
         for id in self.procs.keys().copied().collect::<Vec<ProcessId>>() {
             debug!("Executing initial step for {id}");
-            let mut outgoing_messages = OutgoingMessages::New();
+            let mut access_messages = SimulationAccess::New();
             let config = Configuration {
                 assigned_id: id,
                 proc_num: self.procs.keys().len(),
             };
-            self.HandleOf(id).Bootstrap(config, &mut outgoing_messages);
-            self.SubmitMessages(id, outgoing_messages.0);
+            self.HandleOf(id).Bootstrap(config, &mut access_messages);
+            self.SubmitMessages(id, access_messages.0);
         }
     }
 
@@ -153,11 +153,11 @@ where
         let dest = step.dest;
         let message = step.message;
 
-        let mut outgoing_messages = OutgoingMessages::New();
+        let mut access_messages = SimulationAccess::New();
 
         debug!("Executing step for {} | Message Source: {}", dest, source);
         self.HandleOf(dest)
-            .OnMessage(source, message, &mut outgoing_messages);
-        self.SubmitMessages(dest, outgoing_messages.0);
+            .OnMessage(source, message, &mut access_messages);
+        self.SubmitMessages(dest, access_messages.0);
     }
 }

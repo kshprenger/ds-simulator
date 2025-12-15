@@ -2,9 +2,9 @@ use crate::{Destination, ProcessId, communication::Message};
 
 /// Injected into user's process's on_message handler.
 /// This is common interface to process to allow it schedule some events.
-pub struct OutgoingMessages<M: Message>(pub(crate) Vec<(Destination, M)>);
+pub struct SimulationAccess<M: Message>(pub(crate) Vec<(Destination, M)>);
 
-impl<M: Message> OutgoingMessages<M> {
+impl<M: Message> SimulationAccess<M> {
     pub(crate) fn New() -> Self {
         Self(Vec::new())
     }
@@ -12,7 +12,7 @@ impl<M: Message> OutgoingMessages<M> {
 
 /// User interface.
 /// Methods should be called from inside of on_message handler.
-impl<M: Message> OutgoingMessages<M> {
+impl<M: Message> SimulationAccess<M> {
     pub fn Broadcast(&mut self, message: M) {
         self.0.push((Destination::Broadcast, message));
     }

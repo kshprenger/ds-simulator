@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+mod access;
 mod communication;
 mod metrics;
 mod network_condition;
@@ -9,7 +10,7 @@ mod simulation;
 mod simulation_builder;
 mod time;
 
-pub use communication::OutgoingMessages;
+pub use access::SimulationAccess;
 pub use communication::{Destination, Message};
 pub use network_condition::BandwidthType;
 pub use process::Configuration;

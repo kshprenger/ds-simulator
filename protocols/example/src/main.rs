@@ -30,11 +30,11 @@ impl ProcessHandle<ExampleMessage> for ExampleProcess {
     fn Bootstrap(
         &mut self,
         configuration: Configuration,
-        outgoing: &mut OutgoingMessages<ExampleMessage>,
+        access: &mut SimulationAccess<ExampleMessage>,
     ) {
         self.self_id = configuration.assigned_id;
         if configuration.assigned_id == 1 {
-            outgoing.SendTo(2, ExampleMessage::Ping);
+            access.SendTo(2, ExampleMessage::Ping);
         }
     }
 
@@ -42,17 +42,17 @@ impl ProcessHandle<ExampleMessage> for ExampleProcess {
         &mut self,
         from: ProcessId,
         message: ExampleMessage,
-        outgoing: &mut OutgoingMessages<ExampleMessage>,
+        access: &mut SimulationAccess<ExampleMessage>,
     ) {
         if from == 1 && self.self_id == 2 {
             assert!(message == ExampleMessage::Ping);
-            outgoing.SendTo(1, ExampleMessage::Pong);
+            access.SendTo(1, ExampleMessage::Pong);
             return;
         }
 
         if from == 2 && self.self_id == 1 {
             assert!(message == ExampleMessage::Pong);
-            outgoing.SendTo(2, ExampleMessage::Ping);
+            access.SendTo(2, ExampleMessage::Ping);
             return;
         }
     }
