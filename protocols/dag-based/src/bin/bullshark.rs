@@ -7,7 +7,7 @@ fn main() {
             .MaxTime(Jiffies(234))
             .NetworkBandwidth(BandwidthType::Unbounded)
             .ProcessInstances(procs)
-            .Seed(69)
+            .Seed(procs as u64)
             .Build();
         let metrics = sim.Run();
         println!("{}, {}", procs, metrics.events_total)
