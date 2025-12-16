@@ -1,4 +1,9 @@
-use std::{collections::VecDeque, ops::Index, rc::Rc};
+use std::{
+    collections::VecDeque,
+    hash::{Hash, Hasher},
+    ops::Index,
+    rc::Rc,
+};
 
 use simulator::ProcessId;
 
@@ -9,11 +14,19 @@ pub fn SameVertex(v: &VertexPtr, u: &VertexPtr) -> bool {
     Rc::ptr_eq(v, u)
 }
 
-#[derive(PartialEq, Eq, Hash)] // Hashing for fast lookup in buffers
+#[derive(PartialEq, Eq)] // Hashing for fast lookup in buffers
 pub struct Vertex {
     pub round: usize,
     pub source: ProcessId,
     pub strong_edges: Vec<VertexPtr>,
+}
+
+impl Hash for Vertex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.round.hash(state);
+        self.source.hash(state);
+        // Exclude strong_edges from hash in order to prevent exonential explosion
+    }
 }
 
 pub struct RoundBasedDAG {
