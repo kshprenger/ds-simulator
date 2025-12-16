@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use log::debug;
+use log::{debug, info};
 
 use crate::{
     SimulationAccess,
@@ -56,10 +56,10 @@ where
 
         while self.KeepRunning() {
             if !self.Step() {
-                panic!("Deadlock")
+                panic!("DEADLOCK! (ﾉಥ益ಥ）ﾉ ┻━┻ Try with RUST_LOG=debug ")
             }
         }
-
+        info!("looks good! ヽ(‘ー`)ノ");
         self.metrics.clone()
     }
 }
