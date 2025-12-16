@@ -21,11 +21,21 @@ pub struct Vertex {
     pub strong_edges: Vec<VertexPtr>,
 }
 
-impl Hash for Vertex {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.round.hash(state);
-        self.source.hash(state);
-        // Exclude strong_edges from hash in order to prevent exonential explosion
+impl PartialOrd for Vertex {
+    fn ge(&self, other: &Self) -> bool {
+        (self.round, self.source).ge(&(other.round, other.source))
+    }
+    fn le(&self, other: &Self) -> bool {
+        (self.round, self.source).le(&(other.round, other.source))
+    }
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        (self.round, self.source).partial_cmp(&(other.round, other.source))
+    }
+}
+
+impl Ord for Vertex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (self.round, self.source).cmp(&(other.round, other.source))
     }
 }
 

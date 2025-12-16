@@ -1,7 +1,7 @@
 // https://arxiv.org/pdf/2201.05677
 // https://arxiv.org/pdf/2209.05633
 
-use std::{collections::HashSet, time::Instant};
+use std::collections::{BTreeSet, HashSet};
 
 use simulator::*;
 
@@ -24,7 +24,7 @@ pub struct Bullshark {
     proc_num: usize,
     dag: RoundBasedDAG,
     round: usize,
-    buffer: HashSet<VertexPtr>,
+    buffer: BTreeSet<VertexPtr>,
     last_ordered_round: usize,
     ordered_anchors_stack: Vec<VertexPtr>,
 }
@@ -36,7 +36,7 @@ impl Bullshark {
             proc_num: 0,
             dag: RoundBasedDAG::New(),
             round: 0,
-            buffer: HashSet::new(),
+            buffer: BTreeSet::new(),
             last_ordered_round: 0,
             ordered_anchors_stack: Vec::new(),
         }
@@ -81,18 +81,14 @@ impl ProcessHandle<BullsharkMessage> for Bullshark {
                     return;
                 }
 
+                let vertices_in_the_buffer =
+                    self.buffer.iter().cloned().collect::<Vec<VertexPtr>>();
+                vertices_in_the_buffer.into_iter().for_each(|v| {
+                    self.TryAddToDAG(v, access);
+                });
+
                 if !self.TryAddToDAG(v.clone(), access) {
                     self.buffer.insert(v.clone());
-                } else {
-                    let vertices_in_the_buffer =
-                        self.buffer.iter().cloned().collect::<Vec<VertexPtr>>();
-                    vertices_in_the_buffer.into_iter().for_each(|v| {
-                        self.TryAddToDAG(v, access);
-                    });
-                }
-
-                if v.round != self.round {
-                    return;
                 }
 
                 self.TryAdvanceRound(access);
