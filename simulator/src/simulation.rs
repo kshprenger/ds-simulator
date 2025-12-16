@@ -56,7 +56,7 @@ where
 
         while self.KeepRunning() {
             if !self.Step() {
-                panic!("DEADLOCK! (ﾉಥ益ಥ）ﾉ ┻━┻ Try with RUST_LOG=debug ")
+                panic!("DEADLOCK! (ﾉಥ益ಥ）ﾉ ┻━┻ Try with RUST_LOG=debug")
             }
         }
         info!("looks good! ヽ(‘ー`)ノ");
