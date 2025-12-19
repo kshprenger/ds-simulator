@@ -1,7 +1,6 @@
 use std::env;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use log::Level;
 
 use crate::Jiffies;
 
@@ -19,6 +18,14 @@ impl Bar {
                 .template("[{bar:100.cyan/blue}] {pos}/{len} Jiffies {msg}")
                 .unwrap(),
         );
+        match env::var("RUST_LOG") {
+            Ok(value) => {
+                if value == "info" {
+                    bar.set_position(0);
+                }
+            }
+            Err(_) => {}
+        }
         Self {
             bar: bar,
             prev_log: 0,
