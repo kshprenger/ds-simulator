@@ -55,7 +55,7 @@ impl ProcessHandle for ExampleProcess {
 fn main() {
     let start = Instant::now();
 
-    let m = SimulationBuilder::NewFromFactory(|| ExampleProcess::New())
+    let m = SimulationBuilder::NewFromFactory(|| Box::new(ExampleProcess::New()))
         .NetworkBandwidth(simulator::BandwidthType::Unbounded)
         .MaxLatency(Jiffies(10))
         .MaxTime(Jiffies(100_000_000))
@@ -68,7 +68,7 @@ fn main() {
 
     let start = Instant::now();
 
-    let m = SimulationBuilder::NewFromFactory(|| ExampleProcess::New())
+    let m = SimulationBuilder::NewFromFactory(|| Box::new(ExampleProcess::New()))
         .NetworkBandwidth(simulator::BandwidthType::Bounded(5))
         .MaxLatency(Jiffies(10))
         .MaxTime(Jiffies(100_000_000))

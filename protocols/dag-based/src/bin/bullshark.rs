@@ -5,7 +5,7 @@ fn main() {
     metrics::Clear();
     metrics::Set::<Vec<Jiffies>>("latency", Vec::new());
 
-    SimulationBuilder::NewFromFactory(|| Bullshark::New())
+    SimulationBuilder::NewFromFactory(|| Box::new(Bullshark::New()))
         .MaxLatency(Jiffies(500))
         .MaxTime(Jiffies(10000_000))
         .NetworkBandwidth(BandwidthType::Bounded(100))

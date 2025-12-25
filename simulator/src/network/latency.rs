@@ -36,7 +36,7 @@ impl LatencyQueue {
         Some(self.queue.pop()?.0)
     }
 
-    pub(crate) fn Peek(&mut self) -> Option<&RoutedMessage> {
+    pub(crate) fn Peek(&self) -> Option<&RoutedMessage> {
         Some(&self.queue.peek()?.0)
     }
 }

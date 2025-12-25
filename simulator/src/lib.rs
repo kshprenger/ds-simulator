@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+mod actor;
 mod communication;
 pub mod metrics;
 mod network;
@@ -22,5 +23,4 @@ pub use simulation_builder::SimulationBuilder;
 
 pub use network::BandwidthType;
 pub use network::Broadcast;
-pub use network::SendSelf;
 pub use network::SendTo;

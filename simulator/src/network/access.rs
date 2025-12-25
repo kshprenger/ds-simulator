@@ -25,29 +25,20 @@ impl NetworkAccess {
             .push((Destination::To(to), Rc::new(message)));
     }
 
-    fn SendSelf(&mut self, message: impl Message + 'static) {
-        self.scheduled_messages
-            .push((Destination::SendSelf, Rc::new(message)));
-    }
-
     fn DrainMessages(&mut self) -> Vec<(Destination, Rc<dyn Message>)> {
         self.scheduled_messages.drain(..).collect()
     }
 }
 
 thread_local! {
-    pub(crate) static ACCESS_HANDLE: RefCell<Option<NetworkAccess>> = RefCell::new(None);
-}
-
-pub(crate) fn CreateAccess() {
-    ACCESS_HANDLE.with_borrow_mut(|access| *access = Some(NetworkAccess::New()))
+    pub(crate) static ACCESS_HANDLE: RefCell<NetworkAccess> = RefCell::new(NetworkAccess::New());
 }
 
 pub(crate) fn WithAccess<F, T>(f: F) -> T
 where
     F: FnOnce(&mut NetworkAccess) -> T,
 {
-    ACCESS_HANDLE.with_borrow_mut(|access| f(access.as_mut().expect("Out of simulation context")))
+    ACCESS_HANDLE.with_borrow_mut(|access| f(access))
 }
 
 pub(crate) fn DrainMessages() -> Vec<(Destination, Rc<dyn Message>)> {
@@ -60,8 +51,4 @@ pub fn Broadcast(message: impl Message + 'static) {
 
 pub fn SendTo(to: ProcessId, message: impl Message + 'static) {
     WithAccess(|access| access.SendTo(to, message));
-}
-
-pub fn SendSelf(message: impl Message + 'static) {
-    WithAccess(|access| access.SendSelf(message));
 }

@@ -69,6 +69,24 @@ impl BandwidthQueue {
             }
         }
     }
+
+    pub(crate) fn PeekClosest(&self) -> Option<Jiffies> {
+        let closest_arriving_message = self.global_queue.Peek();
+        let closest_squeezing_message = self.merged_fifo_buffers.peek();
+
+        match (closest_arriving_message, closest_squeezing_message) {
+            (None, None) => None,
+            (Some(m), None) => Some(m.arrival_time),
+            (None, Some(m)) => Some(m.0.arrival_time),
+            (Some(l_message), Some(b_message)) => {
+                if l_message.arrival_time <= b_message.0.arrival_time {
+                    Some(l_message.arrival_time)
+                } else {
+                    Some(b_message.0.arrival_time)
+                }
+            }
+        }
+    }
 }
 
 impl BandwidthQueue {

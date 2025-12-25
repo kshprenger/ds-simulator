@@ -1,12 +1,12 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{
-    Simulation, network::BandwidthType, process::ProcessHandle, random::Seed,
-    time::Jiffies,
+    Simulation, network::BandwidthType, process::ProcessHandle, random::Seed, time::Jiffies,
 };
 
-pub struct SimulationBuilder<F, P>
+pub struct SimulationBuilder<F>
 where
-    F: Fn() -> P,
-    P: ProcessHandle,
+    F: Fn() -> Box<dyn ProcessHandle>,
 {
     seed: Seed,
     max_steps: Jiffies,
@@ -16,12 +16,11 @@ where
     bandwidth: BandwidthType,
 }
 
-impl<F, P> SimulationBuilder<F, P>
+impl<F> SimulationBuilder<F>
 where
-    F: Fn() -> P,
-    P: ProcessHandle,
+    F: Fn() -> Box<dyn ProcessHandle>,
 {
-    pub fn NewFromFactory(f: F) -> SimulationBuilder<F, P> {
+    pub fn NewFromFactory(f: F) -> SimulationBuilder<F> {
         SimulationBuilder {
             seed: 69,
             max_steps: Jiffies(1_000_000),
@@ -57,14 +56,14 @@ where
         self
     }
 
-    pub fn Build(self) -> Simulation<P> {
+    pub fn Build(self) -> Simulation {
         Simulation::New(
             self.seed,
             self.max_steps,
             self.max_network_latency,
             self.bandwidth,
             (1..=self.process_count)
-                .map(|id| (id, (self.factory)()))
+                .map(|id| (id, Rc::new(RefCell::new((self.factory)()))))
                 .collect(),
         )
     }

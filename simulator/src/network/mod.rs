@@ -2,11 +2,11 @@ mod access;
 mod bandwidth;
 mod latency;
 
+use std::cell::RefMut;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
 pub use access::Broadcast;
-pub use access::SendSelf;
 pub use access::SendTo;
 
 pub(crate) use bandwidth::BandwidthQueue;
@@ -21,22 +21,23 @@ use crate::Message;
 use crate::MessagePtr;
 use crate::ProcessHandle;
 use crate::ProcessId;
+use crate::actor::SimulationActor;
 use crate::communication::ProcessStep;
 use crate::communication::RoutedMessage;
-use crate::network::access::CreateAccess;
 use crate::network::access::DrainMessages;
+use crate::process::SharedProcessHandle;
 use crate::random::Randomizer;
 use crate::random::Seed;
 use crate::time::FastForwardClock;
 use crate::time::Jiffies;
 use crate::time::Now;
 
-pub(crate) struct Network<P: ProcessHandle> {
+pub(crate) struct Network {
     bandwidth_queue: BandwidthQueue,
-    procs: BTreeMap<ProcessId, P>,
+    procs: BTreeMap<ProcessId, SharedProcessHandle>,
 }
 
-impl<P: ProcessHandle> Network<P> {
+impl Network {
     fn SubmitMessages(&mut self, source: ProcessId, messages: Vec<(Destination, Rc<dyn Message>)>) {
         messages.into_iter().for_each(|(destination, event)| {
             self.SubmitSingleMessage(event, source, destination, Now() + Jiffies(1));
@@ -53,7 +54,6 @@ impl<P: ProcessHandle> Network<P> {
         let targets = match destination {
             Destination::Broadcast => self.procs.keys().copied().collect::<Vec<ProcessId>>(),
             Destination::To(to) => vec![to],
-            Destination::SendSelf => vec![source],
         };
 
         debug!("Submitting message, targets of the message: {targets:?}",);
@@ -71,10 +71,11 @@ impl<P: ProcessHandle> Network<P> {
         });
     }
 
-    fn HandleOf(&mut self, process_id: ProcessId) -> &mut P {
+    fn HandleOf(&mut self, process_id: ProcessId) -> RefMut<'_, Box<dyn ProcessHandle>> {
         self.procs
             .get_mut(&process_id)
             .expect("Invalid proccess id")
+            .borrow_mut()
     }
 
     fn ExecuteProcessStep(&mut self, step: ProcessStep) {
@@ -93,12 +94,12 @@ impl<P: ProcessHandle> Network<P> {
     }
 }
 
-impl<P: ProcessHandle> Network<P> {
+impl Network {
     pub(crate) fn New(
         seed: Seed,
         max_network_latency: Jiffies,
         bandwidth_type: BandwidthType,
-        procs: BTreeMap<ProcessId, P>,
+        procs: BTreeMap<ProcessId, SharedProcessHandle>,
     ) -> Self {
         Self {
             bandwidth_queue: BandwidthQueue::New(
@@ -109,10 +110,10 @@ impl<P: ProcessHandle> Network<P> {
             procs,
         }
     }
+}
 
-    pub(crate) fn Start(&mut self) {
-        CreateAccess();
-
+impl SimulationActor for Network {
+    fn Start(&mut self) {
         for id in self.procs.keys().copied().collect::<Vec<ProcessId>>() {
             debug!("Executing initial step for {id}");
             let config = Configuration {
@@ -125,17 +126,19 @@ impl<P: ProcessHandle> Network<P> {
         }
     }
 
-    pub(crate) fn Step(&mut self) -> bool {
+    fn Step(&mut self) {
         let next_event = self.bandwidth_queue.Pop();
 
         match next_event {
-            BandwidthQueueOptions::None => false,
-            BandwidthQueueOptions::MessageArrivedByLatency => true, // Do nothing
+            BandwidthQueueOptions::None => {}
+            BandwidthQueueOptions::MessageArrivedByLatency => {}
             BandwidthQueueOptions::Some(message) => {
-                FastForwardClock(message.arrival_time);
                 self.ExecuteProcessStep(message.step);
-                true
             }
         }
+    }
+
+    fn PeekClosest(&self) -> Option<Jiffies> {
+        self.bandwidth_queue.PeekClosest()
     }
 }

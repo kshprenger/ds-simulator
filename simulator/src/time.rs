@@ -61,12 +61,12 @@ thread_local! {
     pub(crate) static CLOCK: Cell<Jiffies> = Cell::new(Jiffies(0))
 }
 
-pub(crate) fn FastForwardClock(time: Jiffies) {
+pub(crate) fn FastForwardClock(future: Jiffies) {
     CLOCK.with(|cell| {
         let now = cell.get();
-        debug_assert!(now <= time, "Time is not monotonous");
-        cell.set(time);
-        debug!("Global time now: {time}");
+        debug_assert!(now <= future, "Time is not monotonous");
+        cell.set(future);
+        debug!("Global time now: {future}");
     });
 }
 
