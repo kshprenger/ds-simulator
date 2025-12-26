@@ -1,0 +1,103 @@
+use std::{cell::RefCell, rc::Rc};
+
+use crate::{
+    Destination, Message, ProcessId,
+    network::Network,
+    time::{
+        Jiffies,
+        timer::{NextTimerId, TimerId, Timers},
+    },
+};
+
+pub struct SimulationAccess {
+    process_on_execution: ProcessId,
+    pub(crate) scheduled_messages: Vec<(ProcessId, Destination, Rc<dyn Message>)>,
+    pub(crate) scheduled_timers: Vec<(ProcessId, TimerId, Jiffies)>,
+    network: Rc<RefCell<Network>>,
+    timers: Rc<RefCell<Timers>>,
+}
+
+impl SimulationAccess {
+    pub(crate) fn New(network: Rc<RefCell<Network>>, timers: Rc<RefCell<Timers>>) -> Self {
+        Self {
+            process_on_execution: 0,
+            scheduled_timers: Vec::new(),
+            scheduled_messages: Vec::new(),
+            network,
+            timers,
+        }
+    }
+}
+
+impl SimulationAccess {
+    fn Broadcast(&mut self, message: impl Message + 'static) {
+        self.scheduled_messages.push((
+            self.process_on_execution,
+            Destination::Broadcast,
+            Rc::new(message),
+        ));
+    }
+
+    fn SendTo(&mut self, to: ProcessId, message: impl Message + 'static) {
+        self.scheduled_messages.push((
+            self.process_on_execution,
+            Destination::To(to),
+            Rc::new(message),
+        ));
+    }
+
+    fn ScheduleTimerAfter(&mut self, after: Jiffies) -> TimerId {
+        let timer_id = NextTimerId();
+        self.scheduled_timers
+            .push((self.process_on_execution, timer_id, after));
+        timer_id
+    }
+
+    fn Drain(&mut self) {
+        self.network
+            .borrow_mut()
+            .SubmitMessages(&mut self.scheduled_messages);
+        self.timers
+            .borrow_mut()
+            .ScheduleTimers(&mut self.scheduled_timers);
+    }
+
+    fn SetProcess(&mut self, id: ProcessId) {
+        self.process_on_execution = id
+    }
+}
+
+thread_local! {
+    pub(crate) static ACCESS_HANDLE: RefCell<Option<SimulationAccess>> = RefCell::new(None);
+}
+
+pub(crate) fn SetupAccess(network: Rc<RefCell<Network>>, timers: Rc<RefCell<Timers>>) {
+    ACCESS_HANDLE.with_borrow_mut(|access| *access = Some(SimulationAccess::New(network, timers)));
+}
+
+pub(crate) fn WithAccess<F, T>(f: F) -> T
+where
+    F: FnOnce(&mut SimulationAccess) -> T,
+{
+    ACCESS_HANDLE.with_borrow_mut(|access| f(access.as_mut().expect("Out of simulation context")))
+}
+
+pub(crate) fn SetProcess(id: ProcessId) {
+    WithAccess(|access| access.SetProcess(id));
+}
+
+pub(crate) fn Drain() {
+    WithAccess(|access| access.Drain());
+}
+
+pub fn ScheduleTimerAfter(after: Jiffies) -> TimerId {
+    WithAccess(|access| access.ScheduleTimerAfter(after))
+}
+
+pub fn Broadcast(message: impl Message + 'static) {
+    WithAccess(|access| access.Broadcast(message));
+}
+
+pub fn SendTo(to: ProcessId, message: impl Message + 'static) {
+    WithAccess(|access| access.SendTo(to, message));
+}

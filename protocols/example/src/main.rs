@@ -2,7 +2,10 @@
 
 use std::time::Instant;
 
-use simulator::{time::Jiffies, *};
+use simulator::{
+    time::{Jiffies, timer::TimerId},
+    *,
+};
 
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
 enum ExampleMessage {
@@ -18,11 +21,15 @@ impl Message for ExampleMessage {
 
 struct ExampleProcess {
     self_id: ProcessId,
+    timer_id: TimerId,
 }
 
 impl ExampleProcess {
     fn New() -> Self {
-        Self { self_id: 0 }
+        Self {
+            self_id: 0,
+            timer_id: 0,
+        }
     }
 }
 
@@ -30,7 +37,7 @@ impl ProcessHandle for ExampleProcess {
     fn Bootstrap(&mut self, configuration: Configuration) {
         self.self_id = configuration.assigned_id;
         if configuration.assigned_id == 1 {
-            SendTo(2, ExampleMessage::Ping);
+            self.timer_id = ScheduleTimerAfter(Jiffies(100));
         }
     }
 
@@ -49,6 +56,11 @@ impl ProcessHandle for ExampleProcess {
             SendTo(2, ExampleMessage::Ping);
             return;
         }
+    }
+
+    fn OnTimer(&mut self, id: TimerId) {
+        assert!(id == self.timer_id);
+        SendTo(2, ExampleMessage::Ping);
     }
 }
 

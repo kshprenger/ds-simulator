@@ -1,13 +1,9 @@
-mod access;
 mod bandwidth;
 mod latency;
 
 use std::cell::RefMut;
 use std::collections::BTreeMap;
 use std::rc::Rc;
-
-pub use access::Broadcast;
-pub use access::SendTo;
 
 pub(crate) use bandwidth::BandwidthQueue;
 pub(crate) use bandwidth::BandwidthQueueOptions;
@@ -21,14 +17,13 @@ use crate::Message;
 use crate::MessagePtr;
 use crate::ProcessHandle;
 use crate::ProcessId;
+use crate::access;
 use crate::actor::SimulationActor;
 use crate::communication::ProcessStep;
 use crate::communication::RoutedMessage;
-use crate::network::access::DrainMessages;
 use crate::process::SharedProcessHandle;
 use crate::random::Randomizer;
 use crate::random::Seed;
-use crate::time::FastForwardClock;
 use crate::time::Jiffies;
 use crate::time::Now;
 
@@ -38,12 +33,6 @@ pub(crate) struct Network {
 }
 
 impl Network {
-    fn SubmitMessages(&mut self, source: ProcessId, messages: Vec<(Destination, Rc<dyn Message>)>) {
-        messages.into_iter().for_each(|(destination, event)| {
-            self.SubmitSingleMessage(event, source, destination, Now() + Jiffies(1));
-        });
-    }
-
     fn SubmitSingleMessage(
         &mut self,
         message: Rc<dyn Message>,
@@ -56,7 +45,7 @@ impl Network {
             Destination::To(to) => vec![to],
         };
 
-        debug!("Submitting message, targets of the message: {targets:?}",);
+        debug!("Submitting message from {source}, targets of the message: {targets:?}",);
 
         targets.into_iter().for_each(|target| {
             let routed_message = RoutedMessage {
@@ -88,9 +77,10 @@ impl Network {
             dest, source
         );
 
+        access::SetProcess(dest);
+
         self.HandleOf(dest)
             .OnMessage(source, MessagePtr::New(message));
-        self.SubmitMessages(dest, DrainMessages());
     }
 }
 
@@ -110,6 +100,18 @@ impl Network {
             procs,
         }
     }
+
+    pub(crate) fn SubmitMessages(
+        &mut self,
+        messages: &mut Vec<(ProcessId, Destination, Rc<dyn Message>)>,
+    ) {
+        messages
+            .drain(..)
+            .into_iter()
+            .for_each(|(from, destination, message)| {
+                self.SubmitSingleMessage(message, from, destination, Now() + Jiffies(1));
+            });
+    }
 }
 
 impl SimulationActor for Network {
@@ -121,8 +123,9 @@ impl SimulationActor for Network {
                 proc_num: self.procs.keys().len(),
             };
 
+            access::SetProcess(id);
+
             self.HandleOf(id).Bootstrap(config);
-            self.SubmitMessages(id, DrainMessages());
         }
     }
 

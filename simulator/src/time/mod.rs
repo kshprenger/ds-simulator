@@ -1,3 +1,5 @@
+pub mod timer;
+
 use std::{
     cell::Cell,
     fmt::{Debug, Display},

@@ -1,19 +1,19 @@
-use core::time;
-use std::process::exit;
+use std::{cell::RefCell, process::exit, rc::Rc};
 
 use log::{error, info};
 
 use crate::{
-    actor::SimulationActor,
+    access,
+    actor::{SharedActor, SimulationActor},
     network::{BandwidthType, Network},
     process::{ProcessId, SharedProcessHandle},
     progress::Bar,
     random::{self},
-    time::{FastForwardClock, Jiffies, Now},
+    time::{FastForwardClock, Jiffies, Now, timer::Timers},
 };
 
 pub struct Simulation {
-    actors: Vec<Box<dyn SimulationActor>>,
+    actors: Vec<Rc<RefCell<dyn SimulationActor>>>,
     max_time: Jiffies,
     progress_bar: Bar,
 }
@@ -31,14 +31,20 @@ impl Simulation {
         let _ = env_logger::try_init();
 
         let mut actors = Vec::new();
-        let network_actor = Box::new(Network::New(
+
+        let network_actor = Rc::new(RefCell::new(Network::New(
             seed,
             max_network_latency,
             bandwidth_type,
-            procs.into_iter().collect(),
-        )) as Box<dyn SimulationActor>;
+            procs.iter().cloned().collect(),
+        )));
 
-        actors.push(network_actor);
+        let timers_actor = Rc::new(RefCell::new(Timers::New(procs.iter().cloned().collect())));
+
+        access::SetupAccess(network_actor.clone(), timers_actor.clone());
+
+        actors.push(network_actor as SharedActor);
+        actors.push(timers_actor as SharedActor);
 
         Self {
             actors,
@@ -58,7 +64,8 @@ impl Simulation {
                 }
                 Some((time, actor)) => {
                     FastForwardClock(time);
-                    actor.Step();
+                    actor.borrow_mut().Step();
+                    access::Drain(); // Only after Step() to avoid double borrow_mut() of SharedActor
                     self.progress_bar.MakeProgress(Now());
                 }
             }
@@ -74,13 +81,16 @@ impl Simulation {
     }
 
     fn Start(&mut self) {
-        self.actors.iter_mut().for_each(|actor| actor.Start());
+        self.actors.iter_mut().for_each(|actor| {
+            actor.borrow_mut().Start();
+            access::Drain(); // Only after Start() to avoid double borrow_mut() of SharedActor
+        });
     }
 
-    fn PeekClosest(&mut self) -> Option<(Jiffies, &mut Box<dyn SimulationActor>)> {
+    fn PeekClosest(&mut self) -> Option<(Jiffies, SharedActor)> {
         self.actors
             .iter_mut()
-            .filter_map(|actor| Some((actor.PeekClosest()?, actor)))
+            .filter_map(|actor| Some((actor.borrow().PeekClosest()?, actor.clone())))
             .min_by_key(|tuple| tuple.0)
     }
 }

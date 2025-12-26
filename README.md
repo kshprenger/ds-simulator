@@ -1,3 +1,3 @@
-# Consensus simulator
+# Distributed system simulator
 
-Simulation framework for different consensus protocols
+Fast & deterministic distributed system simulator
